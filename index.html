@@ -1,0 +1,179 @@
+<!doctype html>
+<html lang="pt-BR"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Amigo Oculto</title>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600&family=Mountains+of+Christmas:wght@700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
+<style>
+:root{--cran:#b8243b;--pine:#1f5c45;--snow:#fff8f2;--blush:#ffd9dc;--gold:#f2b84b;--ink:#4a2a2a}
+*{box-sizing:border-box}
+body{margin:0;font-family:Fredoka,system-ui,sans-serif;color:var(--ink);background:var(--snow) radial-gradient(#fff 2px,transparent 2.5px) 0 0/34px 34px;min-height:100vh;border-top:14px solid;border-image:repeating-linear-gradient(45deg,var(--cran) 0 14px,#fff 14px 28px) 14}
+main{max-width:520px;margin:0 auto;padding:18px 16px 70px}
+h1{font-family:'Mountains of Christmas',cursive;font-size:2.6rem;color:var(--cran);text-align:center;margin:6px 0 2px}
+h2{font-family:'Mountains of Christmas',cursive;color:var(--pine);font-size:1.7rem;margin:0 0 4px}
+.sub{text-align:center;margin:0 0 14px;opacity:.8}
+.box{background:#fff;border:3px solid var(--pine);border-radius:28px;padding:20px 18px 18px;margin:18px 0;box-shadow:0 6px 0 var(--pine)}
+.field{position:relative;margin:26px 0 6px}
+.field label{position:absolute;top:-14px;left:16px;z-index:1;background:var(--gold);color:var(--ink);font-weight:600;font-size:.82rem;padding:3px 13px;border-radius:999px;transform:rotate(-2deg)}
+.field input,.field textarea{width:100%;font:inherit;color:var(--ink);background:var(--snow);border:3px solid var(--cran);border-radius:22px;padding:20px 16px 11px;box-shadow:0 4px 0 var(--blush)}
+.field textarea{min-height:84px;resize:vertical}
+.field input:focus,.field textarea:focus{outline:4px solid var(--gold);outline-offset:1px}
+.two{display:grid;grid-template-columns:1fr 1.6fr;gap:10px}
+button{font:inherit;font-weight:600;border:0;border-radius:999px;padding:12px 22px;background:var(--cran);color:#fff;box-shadow:0 4px 0 #7f1426;cursor:pointer}
+button:active{transform:translateY(3px);box-shadow:0 1px 0 #7f1426}
+button.g{background:var(--pine);box-shadow:0 4px 0 #123d2e}
+button.s{background:var(--blush);color:var(--ink);box-shadow:0 4px 0 #e9aeb4}
+button:disabled{opacity:.5}
+.pic{width:128px;height:128px;border-radius:50%;object-fit:cover;border:4px solid var(--pine);background:var(--blush);display:grid;place-items:center;font-size:3rem;margin:0 auto;position:relative}
+.bow{text-align:center;font-size:1.6rem;margin-top:-18px;position:relative}
+.p{display:flex;gap:12px;align-items:center;padding:9px 0;border-bottom:2px dotted var(--blush)}
+.p .pic{width:48px;height:48px;font-size:1.4rem;margin:0;border-width:3px}
+.c{text-align:center}.m{opacity:.75;font-size:.92rem}
+.err{background:var(--blush);border-radius:14px;padding:10px;margin-top:10px}
+</style></head><body>
+<main><h1>🎄 Amigo Oculto</h1><div id="app" class="c">Preparando o trenó…</div></main>
+<script>
+// >>> COLE AQUI os dados do seu projeto Supabase (Project Settings > API)
+const SUPABASE_URL='https://caiyrbgtzhvjuqpugnmz.supabase.co', SUPABASE_ANON_KEY='sb_publishable_4KpNeleeCcqI3MRHbJKDnA_zEJM_PWG';
+const sb=supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY);
+const $=s=>document.querySelector(s),app=$('#app'),esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+let uid,room=null,P=[],photoBlob=null,photoPrev='',myProductLinks='',timer;
+const img=(u,c='pic')=>u&&u.startsWith('https://')?`<img class="${c}" src="${esc(u)}" alt="">`:`<div class="${c}">🎅</div>`;
+const fld=(id,lb,v='',t='input',x='')=>`<div class="field"><label for="${id}">${lb}</label>${t==='textarea'?`<textarea id="${id}" ${x}>${esc(v)}</textarea>`:`<input id="${id}" value="${esc(v)}" ${x}>`}</div>`;
+const val=id=>($('#'+id)?.value||'').trim();
+const err=m=>{const d=document.createElement('div');d.className='err';d.textContent=m;app.prepend(d);setTimeout(()=>d.remove(),6000)};
+const functionError=async e=>{
+  if(e?.context&&typeof e.context.clone==='function'){
+    try{const body=await e.context.clone().json();if(body?.error)return body.error}catch{}
+  }
+  return e?.message||'Falha ao executar a função de sorteio.';
+};
+
+function home(){clearInterval(timer);room=null;
+  app.className='';app.innerHTML=`<p class="sub">Sorteie, surpreenda e espalhe magia ✨</p>
+  <div class="box"><h2>Criar uma sala</h2>${fld('t','🎄 Nome da sala','','input','placeholder="Natal da família"')}<br><button id="mk">Criar sala</button></div>
+  <div class="box"><h2>Entrar com código</h2>${fld('cd','🔑 Código da sala','','input','placeholder="ex.: k3x9ab" autocapitalize="off"')}<br><button class="g" id="jn">Entrar na sala</button></div>`;
+  $('#mk').onclick=async()=>{const code=Math.random().toString(36).slice(2,8);
+    const{error}=await sb.from('rooms').insert({code,title:val('t')||'Amigo Oculto'});
+    error?err('Não consegui criar a sala. Confira o schema.sql e as chaves.'):location.hash=code};
+  $('#jn').onclick=()=>{const v=val('cd').toLowerCase();v&&(location.hash=v)};
+}
+
+async function load(){
+  const code=location.hash.slice(1).toLowerCase().replace(/[^a-z0-9]/g,'');
+  if(!code)return home();
+  const{data:r,error:roomError}=await sb.from('rooms').select('*').eq('code',code).maybeSingle();
+  if(roomError){app.innerHTML='<div class="box">Não consegui carregar esta sala. Tente novamente.</div>';return}
+  if(!r){app.innerHTML='<div class="box">Essa sala não existe. Confira o código 🔍<br><br><button class="s" onclick="location.hash=\'\'">Voltar</button></div>';return}
+  room=r;
+  const{data:ps,error:participantsError}=await sb.rpc('get_room_participants',{invite_code:code});
+  if(participantsError){app.innerHTML='<div class="box">Não consegui carregar a lista. Confira as políticas RLS da tabela participants.</div>';return}
+  const{data:me,error:profileError}=await sb.from('participants').select('product_links').eq('room_id',r.id).eq('user_id',uid).maybeSingle();
+  if(profileError){app.innerHTML='<div class="box">Não consegui carregar seu perfil. Confira a migração de product_links no Supabase.</div>';return}
+  myProductLinks=me?.product_links||'';
+  P=ps||[];draw();
+}
+
+function draw(){
+  if(document.activeElement&&/INPUT|TEXTAREA/.test(document.activeElement.tagName)&&app.contains(document.activeElement))return;
+  const adm=room.admin_id===uid,m=P.find(p=>p.user_id===uid),money=v=>v?'R$ '+esc(v):'—';
+  let h=`<h2 class="c" style="font-size:2rem">${esc(room.title)}</h2>
+  <p class="sub">📅 ${esc(room.event_date)||'data a definir'} · 📍 ${esc(room.location)||'local a definir'}<br>💰 ${money(room.min_value)} a ${money(room.max_value)}</p>
+  <div class="box c"><p>🔑 Código para entrar: <b>${esc(room.code)}</b></p><button class="s" id="cc">Copiar código</button> <button class="s" id="cp">Copiar link de convite 💌</button></div>`;
+  if(room.drawn){
+    h+=`<div class="box c"><h2>Sorteio feito! 🎁</h2><p>A lista foi fechada. Confira seu e-mail (e o spam) para ver quem você tirou.</p></div>`;
+    if(adm)h+=`<div class="box c"><p>Se algum e-mail não chegou, você pode tentar enviar novamente os que faltam.</p><button id="go">Enviar e-mails pendentes</button></div>`;
+  }else{
+    h+=`<div class="box"><h2>${m?'Seu perfil':'Entre na brincadeira'}</h2>
+    <div id="pv">${photoPrev?`<img class="pic" src="${photoPrev}" alt="">`:img(m?.photo_url)}</div><div class="bow">🎀</div>
+    <div class="c"><button class="s" id="ph">📷 Escolher foto</button><input id="pf" type="file" accept="image/*" hidden></div>
+    ${fld('nm','🎅 Seu nome',m?.name,'input','autocomplete="off"')}
+    <div class="two">${fld('ag','🎂 Idade',m?.age,'input','type="number" inputmode="numeric"')}${fld('em','💌 Seu e-mail','','input','type="email" placeholder="'+(m?'(digite de novo para trocar)':'para receber o sorteio')+'"')}</div>
+    ${fld('lk','💚 Do que você gosta',m?.likes,'textarea','placeholder="comidas, hobbies, cores, séries…"')}
+    ${fld('ws','🎁 O que quer ganhar',m?.wishes,'textarea','placeholder="dê ideias de presente!"')}
+    ${fld('pl','🔗 Links de produtos (opcional)',myProductLinks,'textarea','placeholder="Um link http(s) por linha"')}<br>
+    <button class="g" id="sv">${m?'Salvar perfil':'Entrar na sala'}</button></div>`;
+  }
+  h+=`<div class="box"><h2>Quem está na festa (${P.length})</h2>`+(P.length?P.map(p=>`<div class="p">${img(p.photo_url,'pic')}<div style="flex:1"><b>${esc(p.name)}</b>${p.user_id===room.admin_id?' 👑':''}<div class="m">${p.age?esc(p.age)+' anos':''}</div></div>${adm&&!room.drawn&&p.user_id!==uid?`<button class="s" data-rm="${p.id}">Remover</button>`:''}</div>`).join(''):'<div class="m">Ninguém entrou ainda. Mande o link de convite!</div>')+'</div>';
+  if(adm&&!room.drawn)h+=`<div class="box"><h2>👑 Painel do adm</h2>
+    <div class="two">${fld('mn','💰 Mínimo',room.min_value,'input','type="number" inputmode="decimal"')}${fld('mx','💰 Máximo',room.max_value,'input','type="number" inputmode="decimal"')}</div>
+    ${fld('dt','📅 Data',room.event_date,'input','type="date"')}${fld('lc','📍 Local',room.location)}<br>
+    <button class="s" id="cf">Salvar regras</button> <button id="go" ${P.length<3?'disabled':''}>Sortear e enviar e-mails 🎁</button>
+    <p class="m">${P.length<3?'Faltam pessoas: o mínimo é 3.':'Quando todo mundo estiver dentro, é só sortear. Não tem volta!'}</p></div>`;
+  app.className='';app.innerHTML=h+`<div class="c"><button class="s" onclick="location.hash=''">Início</button></div>`;wire(adm,m);
+}
+
+function wire(adm,m){
+  $('#cc').onclick=async e=>{
+    try{await navigator.clipboard.writeText(room.code);e.target.textContent='Código copiado!'}
+    catch{err('Não consegui copiar automaticamente. Selecione e copie o código mostrado acima.')}
+  };
+  $('#cp').onclick=e=>{navigator.clipboard?.writeText(location.href);e.target.textContent='Link copiado! 🎄'};
+  document.querySelectorAll('[data-rm]').forEach(b=>b.onclick=async()=>{if(confirm('Remover esta pessoa?')){await sb.from('participants').delete().eq('id',b.dataset.rm);load()}});
+  if($('#ph')){$('#ph').onclick=()=>$('#pf').click();
+    $('#pf').onchange=async e=>{
+      const f=e.target.files[0];if(!f)return;
+      const save=$('#sv'),choose=$('#ph'),src=URL.createObjectURL(f);
+      if(save)save.disabled=true;choose.disabled=true;
+      try{
+        const im=await new Promise((resolve,reject)=>{const image=new Image();image.onload=()=>resolve(image);image.onerror=()=>reject(new Error('Não consegui abrir essa imagem.'));image.src=src});
+        const c=document.createElement('canvas'),s=Math.min(1,400/Math.max(im.width,im.height));c.width=im.width*s;c.height=im.height*s;c.getContext('2d').drawImage(im,0,0,c.width,c.height);
+        const blob=await new Promise(resolve=>c.toBlob(resolve,'image/jpeg',.8));
+        if(!blob)throw new Error('Não consegui preparar a foto para envio.');
+        photoBlob=blob;photoPrev=c.toDataURL('image/jpeg',.8);$('#pv').innerHTML=`<img class="pic" src="${photoPrev}" alt="">`;
+      }catch(error){photoBlob=null;err(error instanceof Error?error.message:'Não consegui preparar a foto para envio.')}
+      finally{URL.revokeObjectURL(src);if(save)save.disabled=false;choose.disabled=false}
+    };
+    $('#sv').onclick=async()=>{
+      const email=val('em'),button=$('#sv');
+      if(!val('nm'))return err('Qual é o seu nome? 🎅');
+      if(!m&&!/^\S+@\S+\.\S+$/.test(email))return err('Preencha um e-mail válido para receber o sorteio.');
+      const links=val('pl').split(/\r?\n/).map(s=>s.trim()).filter(Boolean);
+      const invalidLink=links.some(link=>{try{const u=new URL(link);return u.protocol!=='http:'&&u.protocol!=='https:'}catch{return true}});
+      if(invalidLink)return err('Use links completos começando com http:// ou https://, um por linha.');
+      button.disabled=true;button.textContent='Salvando…';
+      let saved=false;
+      try{
+        let url=m?.photo_url||null;
+        if(photoBlob){
+          const path=`${room.id}/${uid}.jpg`;
+          const up=await sb.storage.from('photos').upload(path,photoBlob,{upsert:true,contentType:'image/jpeg'});
+          if(up.error)throw new Error('Não consegui enviar a foto: '+up.error.message);
+          url=sb.storage.from('photos').getPublicUrl(path).data.publicUrl+'?v='+Date.now();
+        }
+        const row={room_id:room.id,user_id:uid,name:val('nm'),age:val('ag')||null,likes:val('lk'),wishes:val('ws'),photo_url:url,product_links:links.join('\n')||null};
+        if(email)row.email=email;
+        const result=m?await sb.from('participants').update(row).eq('id',m.id):await sb.from('participants').insert(row);
+        if(result.error)throw result.error;
+        photoBlob=null;photoPrev='';await load();saved=true;
+      }catch(error){
+        console.error('Could not save participant profile',error);
+        err('Não deu para salvar: '+(error instanceof Error?error.message:String(error)));
+      }finally{
+        if(!saved){const current=$('#sv');if(current){current.disabled=false;current.textContent=m?'Salvar perfil':'Entrar na sala'}}
+      }
+    }}
+  if($('#cf'))$('#cf').onclick=async()=>{const{error}=await sb.from('rooms').update({min_value:val('mn')||null,max_value:val('mx')||null,event_date:val('dt')||null,location:val('lc')}).eq('id',room.id);error?err('Não salvou as regras.'):($('#cf').textContent='Salvo ✓',load())};
+  if($('#go'))$('#go').onclick=async()=>{if(!confirm(room.drawn?'Enviar novamente os e-mails pendentes? Os pares do sorteio serão mantidos.':'Sortear agora e enviar os e-mails? Depois não dá para mudar a lista.'))return;
+    if(!room.drawn)await $('#cf').onclick();$('#go').disabled=true;$('#go').textContent='Embrulhando os presentes…';
+    const{data,error}=await sb.functions.invoke('draw',{body:{room_id:room.id}});
+    let message='';
+    if(error)message=await functionError(error);
+    else if(data?.error)message=data.error;
+    else if(data.failed?.length){
+      const status=data.brevo_status?' Brevo respondeu HTTP '+data.brevo_status+'.':'';
+      const network=data.network_error?' Houve também uma falha de conexão com o Brevo.':'';
+      message='A Brevo aceitou '+(data.sent||0)+' e-mail(s) nesta tentativa. Ficaram pendentes: '+data.failed.join(', ')+'.'+status+network+' Tente novamente; os pares serão mantidos.';
+    }else if(data?.sent>0)message='A Brevo aceitou '+data.sent+' e-mail(s) nesta tentativa. Confira a caixa de entrada e o spam.';
+    else if(data?.previously_sent>0)message='Nenhum e-mail novo foi enviado: os '+data.previously_sent+' e-mail(s) já estavam marcados como aceitos pela Brevo.';
+    else message='A função terminou sem enviar e sem encontrar e-mails pendentes. Confira os logs da função draw no Supabase.';
+    await load();
+    if(message)err(message)};
+}
+
+(async()=>{try{
+  let{data:{session}}=await sb.auth.getSession();
+  if(!session){const r=await sb.auth.signInAnonymously();if(r.error)throw r.error;session=r.data.session}
+  uid=session.user.id;window.addEventListener('hashchange',load);load();timer=setInterval(()=>{room&&!document.hidden&&load()},20000);
+}catch(e){app.textContent='Não consegui conectar. Confira as chaves do Supabase e se o login anônimo está ligado.'}})();
+</script></body></html>
